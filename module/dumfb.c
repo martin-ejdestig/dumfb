@@ -8,6 +8,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
 #include <linux/module.h>
