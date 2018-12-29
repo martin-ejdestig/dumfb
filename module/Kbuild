@@ -1,0 +1,5 @@
+ifneq ($(DEBUG),n)
+ ccflags-y += -DDEBUG
+endif
+
+obj-m := dumfb.o
