@@ -29,17 +29,20 @@ struct dumfb_par {
 };
 
 // TODO: Can be set to 0 and ignoring potential overflow in dumfb_screen_size().
-static ushort dumfb_width = DUMFB_DEFAULT_WIDTH;
-static ushort dumfb_height = DUMFB_DEFAULT_HEIGHT;
+static struct {
+	ushort width;
+	ushort height;
+} dumfb_parameters = { .width = DUMFB_DEFAULT_WIDTH,
+                       .height = DUMFB_DEFAULT_HEIGHT };
 
 static inline u32 dumfb_bytes_per_line(void)
 {
-	return DUMFB_BYTES_PER_PIXEL * dumfb_width;
+	return DUMFB_BYTES_PER_PIXEL * dumfb_parameters.width;
 }
 
 static inline u32 dumfb_screen_size(void)
 {
-	return dumfb_bytes_per_line() * dumfb_height;
+	return dumfb_bytes_per_line() * dumfb_parameters.height;
 }
 
 static int dumfb_setcolreg(unsigned regno, unsigned red, unsigned green,
@@ -197,10 +200,10 @@ static int __init dumfb_init(void)
 	}
 
 	info->var = dumfb_var;
-	info->var.xres = dumfb_width;
-	info->var.yres = dumfb_height;
-	info->var.xres_virtual = dumfb_width;
-	info->var.yres_virtual = dumfb_height;
+	info->var.xres = dumfb_parameters.width;
+	info->var.yres = dumfb_parameters.height;
+	info->var.xres_virtual = dumfb_parameters.width;
+	info->var.yres_virtual = dumfb_parameters.height;
 
 	info->fix = dumfb_fix;
 	if (is_vmalloc_addr(screen_buffer)) {
@@ -259,8 +262,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Ejdestig <marejde@gmail.com>");
 MODULE_DESCRIPTION("Dumb framebuffer driver that reads/writes to memroy area");
 
-module_param(dumfb_width, ushort, 0);
-MODULE_PARM_DESC(dumfb_width, "width of buffer");
+module_param_named(width, dumfb_parameters.width, ushort, 0);
+MODULE_PARM_DESC(width, "width of buffer");
 
-module_param(dumfb_height, ushort, 0);
-MODULE_PARM_DESC(dumfb_height, "height of buffer");
+module_param_named(height, dumfb_parameters.height, ushort, 0);
+MODULE_PARM_DESC(height, "height of buffer");
