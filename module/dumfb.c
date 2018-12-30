@@ -13,6 +13,7 @@
 #include <linux/mm_types.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/overflow.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
@@ -28,22 +29,11 @@ struct dumfb_par {
 	u32 pseudo_palette[DUMFB_PSEUDO_PALETTE_SIZE];
 };
 
-// TODO: Can be set to 0 and ignoring potential overflow in dumfb_screen_size().
 static struct {
-	ushort width;
-	ushort height;
+	int width;
+	int height;
 } dumfb_parameters = { .width = DUMFB_DEFAULT_WIDTH,
                        .height = DUMFB_DEFAULT_HEIGHT };
-
-static inline u32 dumfb_bytes_per_line(void)
-{
-	return DUMFB_BYTES_PER_PIXEL * dumfb_parameters.width;
-}
-
-static inline u32 dumfb_screen_size(void)
-{
-	return dumfb_bytes_per_line() * dumfb_parameters.height;
-}
 
 static int dumfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp, struct fb_info *info)
@@ -178,12 +168,22 @@ static struct fb_info *dumfb_info = NULL;
 
 static int __init dumfb_init(void)
 {
+	int bytes_per_line, screen_size;
 	int ret = 0;
 	struct fb_info *info;
 	struct dumfb_par *par;
 	void *screen_buffer;
 
 	pr_devel("%s\n", __FUNCTION__);
+
+	if (dumfb_parameters.width <= 0 || dumfb_parameters.height <= 0)
+		return -EINVAL;
+
+	if (check_mul_overflow(dumfb_parameters.width, DUMFB_BYTES_PER_PIXEL, &bytes_per_line))
+		return -EINVAL;
+
+	if (check_mul_overflow(dumfb_parameters.height, bytes_per_line, &screen_size))
+		return -EINVAL;
 
 	info = framebuffer_alloc(sizeof(struct dumfb_par), NULL);
 	if (!info) {
@@ -193,7 +193,7 @@ static int __init dumfb_init(void)
 
 	par = info->par;
 
-	screen_buffer = kvzalloc(dumfb_screen_size(), GFP_USER);
+	screen_buffer = kvzalloc(screen_size, GFP_USER);
 	if (!screen_buffer) {
 		ret = -ENOMEM;
 		goto screen_buffer_alloc_error;
@@ -213,12 +213,12 @@ static int __init dumfb_init(void)
 		// This makes more sense but is probably meaningless.
 		info->fix.smem_start = virt_to_phys(screen_buffer);
 	}
-	info->fix.smem_len = dumfb_screen_size();
-	info->fix.line_length = dumfb_bytes_per_line();
+	info->fix.smem_len = screen_size;
+	info->fix.line_length = bytes_per_line;
 
 	info->fbops = &dumfb_ops;
 	info->screen_buffer = screen_buffer;
-	info->screen_size = dumfb_screen_size();
+	info->screen_size = screen_size;
 	info->pseudo_palette = par->pseudo_palette;
 
 	ret = register_framebuffer(info);
@@ -262,8 +262,8 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Ejdestig <marejde@gmail.com>");
 MODULE_DESCRIPTION("Dumb framebuffer driver that reads/writes to memroy area");
 
-module_param_named(width, dumfb_parameters.width, ushort, 0);
+module_param_named(width, dumfb_parameters.width, int, 0);
 MODULE_PARM_DESC(width, "width of buffer");
 
-module_param_named(height, dumfb_parameters.height, ushort, 0);
+module_param_named(height, dumfb_parameters.height, int, 0);
 MODULE_PARM_DESC(height, "height of buffer");
