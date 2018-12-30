@@ -211,7 +211,7 @@ static int __init dumfb_init(void)
 		info->fix.smem_start = virt_to_phys(screen_buffer);
 	}
 	info->fix.smem_len = dumfb_screen_size();
-	info->fix.line_length = dumfb_bytes_per_line(),
+	info->fix.line_length = dumfb_bytes_per_line();
 
 	info->fbops = &dumfb_ops;
 	info->screen_buffer = screen_buffer;
